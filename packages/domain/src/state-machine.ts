@@ -104,13 +104,14 @@ export function transition(
   const nextState = stateTransitions[event.type as RuntimeEvent["type"]];
   if (!nextState) return context;
 
-  return {
+  const base: StateMachineContext = {
     currentState: nextState,
     previousState: context.currentState,
     enteredAt: new Date(),
-    failureReason:
-      event.type === "PRE_CHECK_FAILED" ? event.reason : undefined,
   };
+  return event.type === "PRE_CHECK_FAILED"
+    ? { ...base, failureReason: event.reason }
+    : base;
 }
 
 export function canTransition(
