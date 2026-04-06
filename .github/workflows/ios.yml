@@ -1,4 +1,4 @@
-name: iOS & watchOS Build
+name: "iOS and watchOS Build"
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build LumeraAI (iOS + watchOS)
+    name: "Build LumeraAI (iOS and watchOS)"
     runs-on: macos-14
 
     steps:
@@ -34,15 +34,16 @@ jobs:
         run: xcodebuild -project LumeraAI.xcodeproj -list
 
       - name: List available simulators
-        run: xcrun simctl list devices available --json | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for runtime, devices in data['devices'].items():
-    if 'iOS' in runtime or 'watchOS' in runtime:
-        for d in devices:
-            if d['isAvailable']:
-                print(runtime, '->', d['name'])
-"
+        run: |
+          xcrun simctl list devices available --json | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for runtime, devices in data['devices'].items():
+              if 'iOS' in runtime or 'watchOS' in runtime:
+                  for d in devices:
+                      if d['isAvailable']:
+                          print(runtime, '->', d['name'])
+          "
 
       - name: Cache DerivedData
         uses: actions/cache@v4
