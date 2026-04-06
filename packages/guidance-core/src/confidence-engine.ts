@@ -67,14 +67,11 @@ export function buildConfidenceState(
 ): ConfidenceState {
   const score = computeConfidenceScore(inputs);
   const band = scoreToBand(score);
-  const dominantDegradationReason = identifyDominantDegradation(inputs, score);
-
-  return {
-    band,
-    score,
-    dominantDegradationReason,
-    lastUpdated: new Date(),
-  };
+  const reason = identifyDominantDegradation(inputs, score);
+  const base: ConfidenceState = { band, score, lastUpdated: new Date() };
+  return reason !== undefined
+    ? { ...base, dominantDegradationReason: reason }
+    : base;
 }
 
 function identifyDominantDegradation(
