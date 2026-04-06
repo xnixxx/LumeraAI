@@ -2,9 +2,9 @@ name: LumeraAI
 options:
   bundleIdPrefix: ai.lumera
   deploymentTarget:
-    iOS: "17.0"
-    watchOS: "10.0"
-  xcodeVersion: "15.3"
+    iOS: "16.0"
+    watchOS: "9.0"
+  xcodeVersion: "14.3"
   createIntermediateGroups: true
   groupSortPosition: top
 
@@ -19,7 +19,7 @@ targets:
   LumeraAI:
     type: application
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "16.0"
     bundleId: ai.lumera.LumeraAI
     info:
       path: LumeraAI/Resources/Info.plist
@@ -61,7 +61,7 @@ targets:
   "LumeraAI Watch App":
     type: application
     platform: watchOS
-    deploymentTarget: "10.0"
+    deploymentTarget: "9.0"
     bundleId: ai.lumera.LumeraAI.watchkitapp
     info:
       path: ../watch/LumeraAIWatch/Resources/Info.plist
