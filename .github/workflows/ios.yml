@@ -116,7 +116,7 @@ jobs:
             build 2>&1
 
       - name: Archive and upload to TestFlight
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && secrets.APPLE_TEAM_ID != ''
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.TESTFLIGHT_ENABLED == 'true'
         working-directory: apps/mobile
         env:
           APPLE_TEAM_ID:                 ${{ secrets.APPLE_TEAM_ID }}
@@ -185,7 +185,7 @@ jobs:
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" 2>&1
 
       - name: Upload IPA artifact (backup)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && secrets.APPLE_TEAM_ID != ''
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.TESTFLIGHT_ENABLED == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: LumeraAI-ipa
