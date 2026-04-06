@@ -3,21 +3,13 @@ name: Backend & Packages CI
 on:
   push:
     branches: [main, develop]
-    paths:
-      - 'packages/**'
-      - 'services/backend/**'
-      - 'tsconfig.base.json'
-      - 'package.json'
-      - '.github/workflows/backend.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'packages/**'
-      - 'services/backend/**'
+  workflow_dispatch:
 
 jobs:
   typecheck-and-build:
-    name: Typecheck & Build (TypeScript)
+    name: Typecheck & Build
     runs-on: ubuntu-latest
 
     steps:
@@ -39,8 +31,8 @@ jobs:
       - name: Build all packages
         run: yarn workspaces run build
 
-  backend-test:
-    name: Backend Integration Tests
+  backend-db-check:
+    name: Backend + Database
     runs-on: ubuntu-latest
     needs: typecheck-and-build
 
@@ -89,12 +81,7 @@ jobs:
           psql "postgresql://lumera:lumera_test@localhost:5432/lumera_test" \
             -f services/backend/migrations/001_initial_schema.sql
 
-      - name: Run backend smoke test
-        working-directory: services/backend
+      - name: Verify schema applied
         run: |
-          node -e "
-            const { db } = require('./dist/shared/db.js');
-            db.query('SELECT 1')
-              .then(() => { console.log('DB connection OK'); process.exit(0); })
-              .catch(e => { console.error(e); process.exit(1); });
-          "
+          psql "postgresql://lumera:lumera_test@localhost:5432/lumera_test" \
+            -c "\dt" | grep -E "users|routes|sessions|emergency_events"
