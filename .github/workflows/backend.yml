@@ -1,4 +1,4 @@
-name: Backend & Packages CI
+name: "Backend and Packages CI"
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   typecheck-and-build:
-    name: Typecheck & Build
+    name: "Typecheck and Build"
     runs-on: ubuntu-latest
 
     steps:
@@ -31,7 +31,7 @@ jobs:
         run: npm run --workspaces --if-present build
 
   backend-db-check:
-    name: Backend + Database
+    name: "Backend and Database"
     runs-on: ubuntu-latest
     needs: typecheck-and-build
 
@@ -44,15 +44,11 @@ jobs:
           POSTGRES_DB: lumera_test
         ports:
           - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+        options: "--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5"
 
     env:
       DB_HOST: localhost
-      DB_PORT: 5432
+      DB_PORT: "5432"
       DB_NAME: lumera_test
       DB_USER: lumera
       DB_PASSWORD: lumera_test
@@ -75,11 +71,7 @@ jobs:
         run: npm run --workspaces --if-present build
 
       - name: Apply database schema
-        run: |
-          psql "postgresql://lumera:lumera_test@localhost:5432/lumera_test" \
-            -f services/backend/migrations/001_initial_schema.sql
+        run: psql "postgresql://lumera:lumera_test@localhost:5432/lumera_test" -f services/backend/migrations/001_initial_schema.sql
 
       - name: Verify schema applied
-        run: |
-          psql "postgresql://lumera:lumera_test@localhost:5432/lumera_test" \
-            -c "\dt" | grep -E "users|routes|sessions|emergency_events"
+        run: psql "postgresql://lumera:lumera_test@localhost:5432/lumera_test" -c '\dt' | grep users
