@@ -1,10 +1,10 @@
 import express from "express";
-import { authRouter } from "./modules/auth/auth.router.js";
-import { routesRouter } from "./modules/routes/routes.router.js";
-import { sessionsRouter } from "./modules/sessions/sessions.router.js";
-import { emergencyRouter } from "./modules/emergency/emergency.router.js";
-import { feedbackRouter } from "./modules/feedback/feedback.router.js";
-import { errorHandler } from "./shared/middleware.js";
+import { authRouter } from "./modules/auth/auth.router";
+import { routesRouter } from "./modules/routes/routes.router";
+import { sessionsRouter } from "./modules/sessions/sessions.router";
+import { emergencyRouter } from "./modules/emergency/emergency.router";
+import { feedbackRouter } from "./modules/feedback/feedback.router";
+import { errorHandler } from "./shared/middleware";
 
 const app = express();
 const PORT = process.env["PORT"] ?? 3000;

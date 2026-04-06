@@ -1,3 +1,3 @@
-export * from "./enums.js";
-export * from "./entities.js";
-export * from "./state-machine.js";
+export * from "./enums";
+export * from "./entities";
+export * from "./state-machine";

@@ -1,3 +1,3 @@
-export * from "./corridor-engine.js";
-export * from "./confidence-engine.js";
-export * from "./arbitration.js";
+export * from "./corridor-engine";
+export * from "./confidence-engine";
+export * from "./arbitration";

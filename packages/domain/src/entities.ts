@@ -9,7 +9,7 @@ import {
   GuidancePriority,
   SurfaceType,
   RuntimeState,
-} from "./enums.js";
+} from "./enums";
 
 // ─── User & Profile ───────────────────────────────────────────────────────────
 

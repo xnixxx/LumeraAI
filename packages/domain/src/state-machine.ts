@@ -1,4 +1,4 @@
-import { RuntimeState } from "./enums.js";
+import { RuntimeState } from "./enums";
 
 // ─── State Machine Events ─────────────────────────────────────────────────────
 

@@ -1,8 +1,8 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { db } from "../../shared/db.js";
-import { generateTokens } from "../../shared/middleware.js";
+import { db } from "../../shared/db";
+import { generateTokens } from "../../shared/middleware";
 
 export const authRouter = Router();
 

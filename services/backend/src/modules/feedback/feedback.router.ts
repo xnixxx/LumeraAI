@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import { z } from "zod";
-import { db } from "../../shared/db.js";
-import { authenticate, AuthRequest } from "../../shared/middleware.js";
+import { db } from "../../shared/db";
+import { authenticate, AuthRequest } from "../../shared/middleware";
 
 export const feedbackRouter = Router();
 feedbackRouter.use(authenticate);

@@ -1,3 +1,3 @@
-export * from "./thresholds.js";
-export * from "./haptic-map.js";
-export * from "./feature-flags.js";
+export * from "./thresholds";
+export * from "./haptic-map";
+export * from "./feature-flags";
