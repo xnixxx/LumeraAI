@@ -85,26 +85,79 @@ jobs:
             ONLY_ACTIVE_ARCH=YES \
             build 2>&1
 
-      - name: Archive (main branch only)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && env.APPLE_TEAM_ID != ''
+      - name: Archive and upload to TestFlight
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && secrets.APPLE_TEAM_ID != ''
         working-directory: apps/mobile
         env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_TEAM_ID:                 ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_CERTIFICATE:             ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD:    ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_PROVISIONING_PROFILE:    ${{ secrets.APPLE_PROVISIONING_PROFILE }}
+          APP_STORE_CONNECT_API_KEY:     ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_ISSUER_ID:   ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID:      ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
         run: |
           set -o pipefail
+
+          # Install certificate into keychain
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "" build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -s build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+
+          # Install provisioning profile
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$APPLE_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/LumeraAI.mobileprovision
+
+          # Archive
           xcodebuild \
             -project LumeraAI.xcodeproj \
             -scheme LumeraAI \
             -destination generic/platform=iOS \
             -configuration Release \
             -archivePath build/LumeraAI.xcarchive \
-            DEVELOPMENT_TEAM="${APPLE_TEAM_ID}" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="LumeraAI" \
             archive 2>&1
 
-      - name: Upload archive artifact
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && env.APPLE_TEAM_ID != ''
+          # Export IPA
+          cat > build/ExportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>teamID</key>
+            <string>${APPLE_TEAM_ID}</string>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild -exportArchive \
+            -archivePath build/LumeraAI.xcarchive \
+            -exportOptionsPlist build/ExportOptions.plist \
+            -exportPath build/ipa 2>&1
+
+          # Upload to TestFlight via App Store Connect API
+          xcrun altool --upload-app \
+            --type ios \
+            --file build/ipa/LumeraAI.ipa \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" 2>&1
+
+      - name: Upload IPA artifact (backup)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && secrets.APPLE_TEAM_ID != ''
         uses: actions/upload-artifact@v4
         with:
-          name: LumeraAI-archive
-          path: apps/mobile/build/LumeraAI.xcarchive
+          name: LumeraAI-ipa
+          path: apps/mobile/build/ipa/LumeraAI.ipa
           retention-days: 14
