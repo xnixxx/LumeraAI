@@ -20,16 +20,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm install
 
       - name: Typecheck all packages
-        run: yarn workspaces run typecheck
+        run: npm run --workspaces --if-present typecheck
 
       - name: Build all packages
-        run: yarn workspaces run build
+        run: npm run --workspaces --if-present build
 
   backend-db-check:
     name: Backend + Database
@@ -68,13 +68,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm install
 
       - name: Build packages
-        run: yarn workspaces run build
+        run: npm run --workspaces --if-present build
 
       - name: Apply database schema
         run: |

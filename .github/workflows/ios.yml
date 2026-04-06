@@ -5,7 +5,7 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main]
-  workflow_dispatch:    # allows manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   build:
@@ -19,19 +19,30 @@ jobs:
       - name: Select Xcode 15.3
         run: sudo xcode-select -switch /Applications/Xcode_15.3.app
 
+      - name: Show Xcode version
+        run: xcodebuild -version
+
       - name: Install XcodeGen
         run: brew install xcodegen
-
-      - name: Install xcpretty
-        run: gem install xcpretty --no-document
 
       - name: Generate Xcode project
         working-directory: apps/mobile
         run: xcodegen generate --spec project.yml
 
-      - name: List generated schemes
+      - name: List generated schemes and targets
         working-directory: apps/mobile
         run: xcodebuild -project LumeraAI.xcodeproj -list
+
+      - name: List available simulators
+        run: xcrun simctl list devices available --json | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for runtime, devices in data['devices'].items():
+    if 'iOS' in runtime or 'watchOS' in runtime:
+        for d in devices:
+            if d['isAvailable']:
+                print(runtime, '->', d['name'])
+"
 
       - name: Cache DerivedData
         uses: actions/cache@v4
@@ -39,9 +50,6 @@ jobs:
           path: ~/Library/Developer/Xcode/DerivedData
           key: xcode-${{ hashFiles('apps/mobile/project.yml') }}-${{ github.sha }}
           restore-keys: xcode-${{ hashFiles('apps/mobile/project.yml') }}-
-
-      - name: List available simulators
-        run: xcrun simctl list devices available
 
       - name: Build iOS app (simulator)
         working-directory: apps/mobile
@@ -56,8 +64,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             ONLY_ACTIVE_ARCH=YES \
-            build \
-          | xcpretty --color
+            build 2>&1
 
       - name: Build watchOS app (simulator)
         working-directory: apps/mobile
@@ -72,14 +79,13 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             ONLY_ACTIVE_ARCH=YES \
-            build \
-          | xcpretty --color
+            build 2>&1
 
       - name: Archive (main branch only)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && env.APPLE_TEAM_ID != ''
         working-directory: apps/mobile
         env:
-          DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -o pipefail
           xcodebuild \
@@ -88,22 +94,13 @@ jobs:
             -destination generic/platform=iOS \
             -configuration Release \
             -archivePath build/LumeraAI.xcarchive \
-            DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}" \
-            archive \
-          | xcpretty --color
+            DEVELOPMENT_TEAM="${APPLE_TEAM_ID}" \
+            archive 2>&1
 
       - name: Upload archive artifact
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && env.APPLE_TEAM_ID != ''
         uses: actions/upload-artifact@v4
         with:
           name: LumeraAI-archive
           path: apps/mobile/build/LumeraAI.xcarchive
           retention-days: 14
-
-      - name: Upload logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: xcode-build-logs
-          path: ~/Library/Logs/DiagnosticReports/
-          retention-days: 3
