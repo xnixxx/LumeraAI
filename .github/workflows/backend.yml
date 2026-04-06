@@ -24,11 +24,17 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Build packages in dependency order
+        run: |
+          npm run build -w packages/domain
+          npm run build -w packages/config
+          npm run build -w packages/guidance-core
+          npm run build -w packages/perception-types
+          npm run build -w packages/api-contracts
+          npm run build -w services/backend
+
       - name: Typecheck all packages
         run: npm run --workspaces --if-present typecheck
-
-      - name: Build all packages
-        run: npm run --workspaces --if-present build
 
   backend-db-check:
     name: "Backend and Database"
@@ -67,8 +73,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build packages
-        run: npm run --workspaces --if-present build
+      - name: Build packages in dependency order
+        run: |
+          npm run build -w packages/domain
+          npm run build -w packages/config
+          npm run build -w packages/guidance-core
+          npm run build -w packages/perception-types
+          npm run build -w packages/api-contracts
+          npm run build -w services/backend
 
       - name: Apply database schema
         run: psql "postgresql://lumera:lumera_test@localhost:5432/lumera_test" -f services/backend/migrations/001_initial_schema.sql
