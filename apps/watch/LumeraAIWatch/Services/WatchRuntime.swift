@@ -1,11 +1,9 @@
 import Foundation
 import WatchKit
 import WatchConnectivity
-import Combine
 
-// MARK: - Watch Runtime (coordinator for the watch app)
+// MARK: - Watch Runtime
 
-@MainActor
 final class WatchRuntime: NSObject, ObservableObject {
     @Published private(set) var sessionState: WatchSessionState = .idle
     @Published private(set) var lastSemanticEvent: WatchGuidanceSemanticType?
@@ -29,30 +27,29 @@ final class WatchRuntime: NSObject, ObservableObject {
 
     override init() {
         super.init()
-        activateWatchConnectivity()
-        startConnectionMonitor()
+        activateSession()
+        startHeartbeat()
     }
 
-    // MARK: - Watch Connectivity
+    // MARK: - WatchConnectivity
 
-    private func activateWatchConnectivity() {
+    private func activateSession() {
         guard WCSession.isSupported() else { return }
         WCSession.default.delegate = self
         WCSession.default.activate()
     }
 
-    // MARK: - Connection Monitor
+    // MARK: - Heartbeat
 
-    private func startConnectionMonitor() {
+    private func startHeartbeat() {
         heartbeatTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.checkPhoneConnection()
-            }
+            DispatchQueue.main.async { self?.checkConnection() }
         }
     }
 
-    private func checkPhoneConnection() {
-        if let last = lastPhoneMessageAt, Date().timeIntervalSince(last) > 6.0 {
+    private func checkConnection() {
+        guard let last = lastPhoneMessageAt else { return }
+        if Date().timeIntervalSince(last) > 6.0 {
             phoneConnected = false
             hapticPlayer.play(.systemDisconnected)
         }
@@ -60,21 +57,14 @@ final class WatchRuntime: NSObject, ObservableObject {
 
     // MARK: - Commands to Phone
 
-    func sendPauseCommand() {
-        sendCommand("PAUSE")
-    }
-
-    func sendResumeCommand() {
-        sendCommand("RESUME")
-    }
+    func sendPauseCommand()        { sendCommand("PAUSE") }
+    func sendResumeCommand()       { sendCommand("RESUME") }
+    func sendEndSessionCommand()   { sendCommand("END_SESSION") }
+    func sendSafeCheckinCommand()  { sendCommand("SAFE_CHECKIN") }
 
     func sendSOSCommand() {
         sendCommand("SOS")
         hapticPlayer.play(.alertStop)
-    }
-
-    func sendEndSessionCommand() {
-        sendCommand("END_SESSION")
     }
 
     func sendCommand(_ command: String) {
@@ -86,41 +76,35 @@ final class WatchRuntime: NSObject, ObservableObject {
         )
     }
 
-    func sendSafeCheckinCommand() {
-        sendCommand("SAFE_CHECKIN")
-    }
+    // MARK: - Incoming Messages
 
-    // MARK: - Process Incoming Events from Phone
-
-    func processIncomingMessage(_ message: [String: Any]) {
+    private func handleMessage(_ message: [String: Any]) {
         lastPhoneMessageAt = Date()
         phoneConnected = true
 
         if let stateRaw = message["runtimeState"] as? String {
-            updateSessionState(stateRaw)
+            updateState(stateRaw)
         }
-
         if let eventRaw = message["semanticType"] as? String,
-           let semanticType = WatchGuidanceSemanticType(rawValue: eventRaw) {
-            hapticPlayer.play(semanticType)
-            lastSemanticEvent = semanticType
+           let event = WatchGuidanceSemanticType(rawValue: eventRaw) {
+            hapticPlayer.play(event)
+            lastSemanticEvent = event
         }
-
-        if let bpm = message["heartRateBpm"] as? Int { heartRateBpm = bpm }
-        if let laps = message["lapCount"] as? Int { lapCount = laps }
-        if let dist = message["distanceM"] as? Double { distanceM = dist }
+        if let bpm  = message["heartRateBpm"] as? Int    { heartRateBpm = bpm }
+        if let laps = message["lapCount"]     as? Int    { lapCount = laps }
+        if let dist = message["distanceM"]   as? Double { distanceM = dist }
     }
 
-    private func updateSessionState(_ raw: String) {
+    private func updateState(_ raw: String) {
         switch raw {
-        case "ACTIVE_RUN":        sessionState = .activeRun
-        case "LOW_CONFIDENCE":    sessionState = .lowConf
-        case "SAFE_MODE":         sessionState = .safeMode
-        case "PAUSED":            sessionState = .paused
+        case "ACTIVE_RUN":     sessionState = .activeRun
+        case "LOW_CONFIDENCE": sessionState = .lowConf
+        case "SAFE_MODE":      sessionState = .safeMode
+        case "PAUSED":         sessionState = .paused
         case "EMERGENCY":
             sessionState = .emergency
             hapticPlayer.play(.alertStop)
-        default:                  sessionState = .idle
+        default:               sessionState = .idle
         }
     }
 }
@@ -128,20 +112,20 @@ final class WatchRuntime: NSObject, ObservableObject {
 // MARK: - WCSessionDelegate
 
 extension WatchRuntime: WCSessionDelegate {
-    nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        Task { @MainActor in
-            self.phoneConnected = activationState == .activated
+    func session(_ session: WCSession,
+                 activationDidCompleteWith state: WCSessionActivationState,
+                 error: Error?) {
+        DispatchQueue.main.async {
+            self.phoneConnected = (state == .activated)
         }
     }
 
-    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-        Task { @MainActor in
-            self.processIncomingMessage(message)
-        }
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        DispatchQueue.main.async { self.handleMessage(message) }
     }
 
-    nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
-        Task { @MainActor in
+    func sessionReachabilityDidChange(_ session: WCSession) {
+        DispatchQueue.main.async {
             self.phoneConnected = session.isReachable
             if !session.isReachable {
                 self.hapticPlayer.play(.systemDisconnected)

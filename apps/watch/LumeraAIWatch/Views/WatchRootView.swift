@@ -4,18 +4,16 @@ struct WatchRootView: View {
     @EnvironmentObject var runtime: WatchRuntime
 
     var body: some View {
-        Group {
-            switch runtime.sessionState {
-            case .idle:
-                WatchIdleView()
-            case .activeRun, .lowConf, .safeMode:
-                WatchActiveRunView()
-            case .paused:
-                WatchPausedView()
-            case .emergency:
-                WatchEmergencyView()
-            }
+        if runtime.sessionState == .emergency {
+            WatchEmergencyView()
+        } else if runtime.sessionState == .paused {
+            WatchPausedView()
+        } else if runtime.sessionState == .activeRun
+                    || runtime.sessionState == .lowConf
+                    || runtime.sessionState == .safeMode {
+            WatchActiveRunView()
+        } else {
+            WatchIdleView()
         }
-        .animation(.easeInOut(duration: 0.2), value: runtime.sessionState)
     }
 }
