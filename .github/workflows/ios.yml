@@ -70,6 +70,36 @@ jobs:
             ONLY_ACTIVE_ARCH=YES \
             build 2>&1
 
+      - name: Build unsigned IPA for AltStore sideloading
+        working-directory: apps/mobile
+        run: |
+          set -o pipefail
+
+          # Build for real device, no signing
+          xcodebuild \
+            -project LumeraAI.xcodeproj \
+            -scheme LumeraAI \
+            -destination generic/platform=iOS \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1
+
+          # Package .app into unsigned .ipa
+          mkdir -p build/Payload
+          cp -r build/DerivedData/Build/Products/Release-iphoneos/LumeraAI.app build/Payload/
+          cd build && zip -r LumeraAI-unsigned.ipa Payload/
+          echo "IPA created: $(du -sh LumeraAI-unsigned.ipa)"
+
+      - name: Upload unsigned IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LumeraAI-unsigned-ipa
+          path: apps/mobile/build/LumeraAI-unsigned.ipa
+          retention-days: 30
+
       - name: Build watchOS app (simulator)
         working-directory: apps/mobile
         run: |
