@@ -1,0 +1,100 @@
+name: Backend & Packages CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'packages/**'
+      - 'services/backend/**'
+      - 'tsconfig.base.json'
+      - 'package.json'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/**'
+      - 'services/backend/**'
+
+jobs:
+  typecheck-and-build:
+    name: Typecheck & Build (TypeScript)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Typecheck all packages
+        run: yarn workspaces run typecheck
+
+      - name: Build all packages
+        run: yarn workspaces run build
+
+  backend-test:
+    name: Backend Integration Tests
+    runs-on: ubuntu-latest
+    needs: typecheck-and-build
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: lumera
+          POSTGRES_PASSWORD: lumera_test
+          POSTGRES_DB: lumera_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: lumera_test
+      DB_USER: lumera
+      DB_PASSWORD: lumera_test
+      JWT_SECRET: ci-test-secret
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build packages
+        run: yarn workspaces run build
+
+      - name: Apply database schema
+        run: |
+          psql "postgresql://lumera:lumera_test@localhost:5432/lumera_test" \
+            -f services/backend/migrations/001_initial_schema.sql
+
+      - name: Run backend smoke test
+        working-directory: services/backend
+        run: |
+          node -e "
+            const { db } = require('./dist/shared/db.js');
+            db.query('SELECT 1')
+              .then(() => { console.log('DB connection OK'); process.exit(0); })
+              .catch(e => { console.error(e); process.exit(1); });
+          "

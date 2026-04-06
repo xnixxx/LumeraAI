@@ -1,0 +1,95 @@
+name: LumeraAI
+options:
+  bundleIdPrefix: ai.lumera
+  deploymentTarget:
+    iOS: "17.0"
+    watchOS: "10.0"
+  xcodeVersion: "15.3"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    DEVELOPMENT_TEAM: ""          # Set your Apple Team ID here or in CI secret
+
+targets:
+
+  # ─── iPhone App ─────────────────────────────────────────────────────────────
+  LumeraAI:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    bundleId: ai.lumera.LumeraAI
+    info:
+      path: LumeraAI/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: LumeraAI
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        UILaunchStoryboardName: LaunchScreen
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIRequiredDeviceCapabilities:
+          - armv7
+        NSHealthShareUsageDescription: "LumeraAI reads heart rate to provide training guidance."
+        NSLocationWhenInUseUsageDescription: "LumeraAI uses your location to guide your run safely."
+        NSCameraUsageDescription: "LumeraAI uses the camera to detect hazards on your route."
+        UIBackgroundModes:
+          - location
+    entitlements:
+      path: LumeraAI/Resources/LumeraAI.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access:
+          - health-records
+    sources:
+      - path: LumeraAI/App
+      - path: LumeraAI/Views
+      - path: LumeraAI/Services
+      - path: LumeraAI/Models
+      - path: LumeraAI/StateMachine
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.lumera.LumeraAI
+        INFOPLIST_FILE: LumeraAI/Resources/Info.plist
+        CODE_SIGN_STYLE: Automatic
+    dependencies:
+      - target: LumeraAI Watch App
+
+  # ─── Apple Watch App ─────────────────────────────────────────────────────────
+  "LumeraAI Watch App":
+    type: application
+    platform: watchOS
+    deploymentTarget: "10.0"
+    bundleId: ai.lumera.LumeraAI.watchkitapp
+    info:
+      path: ../watch/LumeraAIWatch/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: LumeraAI
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: ai.lumera.LumeraAI
+    sources:
+      - path: ../watch/LumeraAIWatch/App
+      - path: ../watch/LumeraAIWatch/Views
+      - path: ../watch/LumeraAIWatch/Services
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.lumera.LumeraAI.watchkitapp
+        INFOPLIST_FILE: ../watch/LumeraAIWatch/Resources/Info.plist
+        CODE_SIGN_STYLE: Automatic
+
+schemes:
+  LumeraAI:
+    build:
+      targets:
+        LumeraAI: all
+        "LumeraAI Watch App": all
+    run:
+      config: Debug
+    test:
+      config: Debug
+    archive:
+      config: Release

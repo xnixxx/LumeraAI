@@ -1,0 +1,113 @@
+name: iOS & watchOS Build
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'apps/mobile/**'
+      - 'apps/watch/**'
+      - '.github/workflows/ios.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'apps/watch/**'
+
+jobs:
+  build:
+    name: Build LumeraAI (iOS + watchOS)
+    runs-on: macos-14          # Apple Silicon Mac runner — Xcode 15 pre-installed
+
+    steps:
+      # ── 1. Checkout ───────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Select Xcode version ───────────────────────────────────────────────
+      - name: Select Xcode 15.3
+        run: sudo xcode-select -switch /Applications/Xcode_15.3.app
+
+      # ── 3. Install XcodeGen ───────────────────────────────────────────────────
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      # ── 4. Generate Xcode project from project.yml ────────────────────────────
+      - name: Generate Xcode project
+        working-directory: apps/mobile
+        run: xcodegen generate --spec project.yml
+
+      # ── 5. Cache derived data ─────────────────────────────────────────────────
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: deriveddata-${{ hashFiles('apps/mobile/project.yml') }}-${{ github.sha }}
+          restore-keys: |
+            deriveddata-${{ hashFiles('apps/mobile/project.yml') }}-
+
+      # ── 6. Build iOS app (simulator — no signing required) ────────────────────
+      - name: Build iOS app
+        working-directory: apps/mobile
+        run: |
+          xcodebuild \
+            -project LumeraAI.xcodeproj \
+            -scheme LumeraAI \
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=latest' \
+            -configuration Debug \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=YES \
+            build \
+            | xcpretty --color
+
+      # ── 7. Build watchOS app (simulator) ─────────────────────────────────────
+      - name: Build watchOS app
+        working-directory: apps/mobile
+        run: |
+          xcodebuild \
+            -project LumeraAI.xcodeproj \
+            -scheme "LumeraAI Watch App" \
+            -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm),OS=latest' \
+            -configuration Debug \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=YES \
+            build \
+            | xcpretty --color
+
+      # ── 8. Archive for App Store (only on main branch) ───────────────────────
+      - name: Archive for App Store
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: apps/mobile
+        env:
+          DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcodebuild \
+            -project LumeraAI.xcodeproj \
+            -scheme LumeraAI \
+            -destination generic/platform=iOS \
+            -configuration Release \
+            -archivePath build/LumeraAI.xcarchive \
+            DEVELOPMENT_TEAM=$DEVELOPMENT_TEAM \
+            archive \
+            | xcpretty --color
+
+      # ── 9. Upload archive artifact ────────────────────────────────────────────
+      - name: Upload archive
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LumeraAI-archive
+          path: apps/mobile/build/LumeraAI.xcarchive
+          retention-days: 14
+
+      # ── 10. Upload build logs on failure ──────────────────────────────────────
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: ~/Library/Logs/DiagnosticReports/
+          retention-days: 3

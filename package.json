@@ -1,0 +1,23 @@
+{
+  "name": "lumera-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI Running Guidance Platform for Blind and Low-Vision Athletes",
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "build": "yarn workspaces run build",
+    "test": "yarn workspaces run test",
+    "lint": "yarn workspaces run lint",
+    "typecheck": "yarn workspaces run typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

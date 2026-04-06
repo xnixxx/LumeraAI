@@ -1,0 +1,22 @@
+# Normalize line endings for cross-platform development
+* text=auto eol=lf
+
+# Swift files — always LF
+*.swift text eol=lf
+
+# YAML / JSON — LF
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+
+# TypeScript — LF
+*.ts text eol=lf
+
+# SQL — LF
+*.sql text eol=lf
+
+# Binary files — no conversion
+*.skill binary
+*.png binary
+*.jpg binary
+*.xcarchive binary
