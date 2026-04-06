@@ -4,7 +4,7 @@ options:
   deploymentTarget:
     iOS: "16.0"
     watchOS: "9.0"
-  xcodeVersion: "14.3"
+  xcodeVersion: "15.4"
   createIntermediateGroups: true
   groupSortPosition: top
 
