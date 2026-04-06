@@ -43,24 +43,36 @@ final class SessionLogger: ObservableObject {
 
     func logGuidanceEvent(_ event: GuidanceEvent) {
         guidanceEvents.append(event)
-        currentSession?.guidanceEvents = guidanceEvents
+        currentSession.map { s in
+            var updated = s
+            updated.guidanceEvents = guidanceEvents
+            currentSession = updated
+        }
     }
 
     func logHazardEvent(_ event: HazardEvent) {
         hazardEvents.append(event)
-        currentSession?.hazardEvents = hazardEvents
+        currentSession.map { s in
+            var updated = s
+            updated.hazardEvents = hazardEvents
+            currentSession = updated
+        }
     }
 
     func incrementLap() {
-        currentSession?.lapCount += 1
+        guard var s = currentSession else { return }
+        s.lapCount += 1
+        currentSession = s
     }
 
     func updateMetrics(distanceM: Double, paceMpS: Double, heartRateBpm: Int?) {
-        currentSession?.totalDistanceM = distanceM
-        currentSession?.averagePaceMpS = paceMpS
+        guard var s = currentSession else { return }
+        s.totalDistanceM = distanceM
+        s.averagePaceMpS = paceMpS
         if let bpm = heartRateBpm {
-            currentSession?.maxHeartRateBpm = max(currentSession?.maxHeartRateBpm ?? 0, bpm)
+            s.maxHeartRateBpm = max(s.maxHeartRateBpm ?? 0, bpm)
         }
+        currentSession = s
     }
 
     func endSession(finalHeartRate: Int?) async -> RunSession? {

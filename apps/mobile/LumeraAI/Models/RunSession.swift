@@ -100,8 +100,8 @@ struct RunSession: Identifiable, Codable {
     var averagePaceMpS: Double
     var maxHeartRateBpm: Int?
     var averageHeartRateBpm: Int?
-    var guidanceEvents: [GuidanceEvent]
-    var hazardEvents: [HazardEvent]
+    var guidanceEvents: [GuidanceEvent]   // var so SessionLogger can update
+    var hazardEvents: [HazardEvent]       // var so SessionLogger can update
 }
 
 // MARK: - Guidance & Hazard Events

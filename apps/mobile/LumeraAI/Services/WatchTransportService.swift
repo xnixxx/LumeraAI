@@ -1,10 +1,8 @@
 import Foundation
 import WatchConnectivity
-import Combine
 
 // MARK: - Watch Semantic Event Transport
 
-@MainActor
 final class WatchTransportService: NSObject, ObservableObject {
     @Published private(set) var connectionState: WatchConnectionState = .disconnected
 
@@ -12,7 +10,6 @@ final class WatchTransportService: NSObject, ObservableObject {
         case connected, connecting, degraded, disconnected
     }
 
-    private var session: WCSession?
     private var heartbeatTimer: Timer?
     private var lastHeartbeatAt: Date?
     private var reconnectAttempts = 0
@@ -23,18 +20,16 @@ final class WatchTransportService: NSObject, ObservableObject {
 
     func activate() {
         guard WCSession.isSupported() else { return }
-        let s = WCSession.default
-        s.delegate = self
-        s.activate()
-        session = s
+        WCSession.default.delegate = self
+        WCSession.default.activate()
         startHeartbeat()
     }
 
     // MARK: - Send Semantic Event
 
     func send(semanticType: GuidanceSemanticType, priority: GuidancePriority) {
-        guard let session = session, session.isReachable else {
-            handleDisconnected()
+        guard WCSession.default.isReachable else {
+            DispatchQueue.main.async { self.connectionState = .disconnected }
             return
         }
         let payload: [String: Any] = [
@@ -43,10 +38,8 @@ final class WatchTransportService: NSObject, ObservableObject {
             "priority": priority.rawValue,
             "timestamp": ISO8601DateFormatter().string(from: Date()),
         ]
-        session.sendMessage(payload, replyHandler: nil) { [weak self] error in
-            Task { @MainActor in
-                self?.handleSendError(error)
-            }
+        WCSession.default.sendMessage(payload, replyHandler: nil) { [weak self] _ in
+            DispatchQueue.main.async { self?.connectionState = .degraded }
         }
     }
 
@@ -54,25 +47,21 @@ final class WatchTransportService: NSObject, ObservableObject {
 
     private func startHeartbeat() {
         heartbeatTimer = Timer.scheduledTimer(withTimeInterval: heartbeatIntervalSec, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.checkHeartbeat()
-            }
+            DispatchQueue.main.async { self?.checkHeartbeat() }
         }
     }
 
     private func checkHeartbeat() {
-        guard let session = session else { return }
-        if session.isReachable {
+        if WCSession.default.isReachable {
             connectionState = .connected
             lastHeartbeatAt = Date()
             reconnectAttempts = 0
-        } else {
-            if let last = lastHeartbeatAt, Date().timeIntervalSince(last) > heartbeatTimeoutSec {
-                connectionState = .disconnected
-                attemptReconnect()
-            } else if connectionState == .connected {
-                connectionState = .degraded
-            }
+        } else if let last = lastHeartbeatAt,
+                  Date().timeIntervalSince(last) > heartbeatTimeoutSec {
+            connectionState = .disconnected
+            attemptReconnect()
+        } else if connectionState == .connected {
+            connectionState = .degraded
         }
     }
 
@@ -80,40 +69,33 @@ final class WatchTransportService: NSObject, ObservableObject {
         guard reconnectAttempts < maxReconnectAttempts else { return }
         reconnectAttempts += 1
         connectionState = .connecting
-        session?.activate()
-    }
-
-    private func handleDisconnected() {
-        connectionState = .disconnected
-    }
-
-    private func handleSendError(_ error: Error) {
-        connectionState = .degraded
+        WCSession.default.activate()
     }
 }
 
 // MARK: - WCSessionDelegate
 
 extension WatchTransportService: WCSessionDelegate {
-    nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        Task { @MainActor in
-            self.connectionState = activationState == .activated ? .connected : .disconnected
+    func session(_ session: WCSession,
+                 activationDidCompleteWith state: WCSessionActivationState,
+                 error: Error?) {
+        DispatchQueue.main.async {
+            self.connectionState = state == .activated ? .connected : .disconnected
         }
     }
 
-    nonisolated func sessionDidBecomeInactive(_ session: WCSession) {
-        Task { @MainActor in self.connectionState = .degraded }
+    // iOS-only delegate methods
+    func sessionDidBecomeInactive(_ session: WCSession) {
+        DispatchQueue.main.async { self.connectionState = .degraded }
     }
 
-    nonisolated func sessionDidDeactivate(_ session: WCSession) {
-        Task { @MainActor in
-            self.connectionState = .disconnected
-            session.activate()
-        }
+    func sessionDidDeactivate(_ session: WCSession) {
+        DispatchQueue.main.async { self.connectionState = .disconnected }
+        session.activate()
     }
 
-    nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
-        Task { @MainActor in
+    func sessionReachabilityDidChange(_ session: WCSession) {
+        DispatchQueue.main.async {
             self.connectionState = session.isReachable ? .connected : .disconnected
         }
     }
