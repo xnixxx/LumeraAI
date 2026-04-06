@@ -77,13 +77,17 @@ final class WatchRuntime: NSObject, ObservableObject {
         sendCommand("END_SESSION")
     }
 
-    private func sendCommand(_ command: String) {
+    func sendCommand(_ command: String) {
         guard WCSession.default.isReachable else { return }
         WCSession.default.sendMessage(
             ["command": command, "timestamp": ISO8601DateFormatter().string(from: Date())],
             replyHandler: nil,
             errorHandler: nil
         )
+    }
+
+    func sendSafeCheckinCommand() {
+        sendCommand("SAFE_CHECKIN")
     }
 
     // MARK: - Process Incoming Events from Phone

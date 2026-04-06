@@ -20,7 +20,7 @@ struct WatchEmergencyView: View {
                 .foregroundStyle(.secondary)
 
             Button {
-                runtime.sendCommand_safe()
+                runtime.sendSafeCheckinCommand()
             } label: {
                 Text("I'm Safe")
                     .font(.caption.bold())
@@ -34,9 +34,3 @@ struct WatchEmergencyView: View {
     }
 }
 
-// WatchRuntime extension for safe checkin command
-extension WatchRuntime {
-    func sendCommand_safe() {
-        sendCommand("SAFE_CHECKIN")
-    }
-}

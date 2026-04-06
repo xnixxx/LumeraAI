@@ -36,10 +36,10 @@ final class HealthKitService: ObservableObject {
             anchor: nil,
             limit: HKObjectQueryNoLimit
         ) { [weak self] _, samples, _, _, _ in
-            self?.processSamples(samples)
+            self?.handleSamples(samples)
         }
         q.updateHandler = { [weak self] _, samples, _, _, _ in
-            self?.processSamples(samples)
+            self?.handleSamples(samples)
         }
         store.execute(q)
         query = q
@@ -50,12 +50,14 @@ final class HealthKitService: ObservableObject {
         query = nil
     }
 
-    private func processSamples(_ samples: [HKSample]?) {
+    // nonisolated so HealthKit callbacks (non-main thread) can call this safely
+    nonisolated private func handleSamples(_ samples: [HKSample]?) {
         guard let quantitySamples = samples as? [HKQuantitySample],
               let latest = quantitySamples.last else { return }
-        let bpm = Int(latest.quantity.doubleValue(for: .init(from: "count/min")))
-        Task { @MainActor in
-            self.currentHeartRateBpm = bpm
+        let unit = HKUnit.count().unitDivided(by: HKUnit.minute())
+        let bpm = Int(latest.quantity.doubleValue(for: unit))
+        Task { @MainActor [weak self] in
+            self?.currentHeartRateBpm = bpm
         }
     }
 }
